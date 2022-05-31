@@ -9,7 +9,18 @@ contract CrowdFunding {
     uint256 public target;
     uint256 public raisedAmount; // Keep track of the total raised amount.
     uint256 public totalContributors; // total contributors who have contributed to crowd funding.
+    uint public numRequests; 
 
+    struct Request {
+        string description;
+        address payable recipient;
+        uint256 value;
+        bool completed;
+        uint256 noOfVoters;
+        mapping(address => bool) voters;
+    }
+
+    mapping(uint => Request) public allRequests;
     mapping(address => uint256) public contributors; // key value pair of contributors address and fund they have contributed.
 
     constructor(uint256 _target, uint256 _deadline) {
@@ -19,7 +30,12 @@ contract CrowdFunding {
         minimumContribution = 100 wei;
     }
 
-    // modifier for deadline;
+    // All Modifiers starts here --------------------------------------------------
+    modifier onlyOwner {
+        require(msg.sender == owner, "Only owner can access this function.");
+        _;
+    }
+     
     modifier isDeadlinePassed() {
         require(
             block.timestamp < deadline,
@@ -27,6 +43,7 @@ contract CrowdFunding {
         );
         _;
     }
+     // All Modifiers Ends here --------------------------------------------------
 
 
     // get balance
@@ -56,5 +73,19 @@ contract CrowdFunding {
 
         address payable user = payable(msg.sender);
         user.transfer(contributors[msg.sender]);
+    }
+
+
+    // Create Request
+    function createRequest (string memory _description, address payable _recipient, uint _value) public onlyOwner {
+        Request storage newRequest = allRequests[numRequests];
+        numRequests++;
+
+        newRequest.description = _description;
+        newRequest.recipient = _recipient;
+        newRequest.value = _value;
+        newRequest.completed = false;
+        newRequest.noOfVoters = 0;
+
     }
 }
