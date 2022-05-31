@@ -9,7 +9,7 @@ contract CrowdFunding {
     uint256 public target;
     uint256 public raisedAmount; // Keep track of the total raised amount.
     uint256 public totalContributors; // total contributors who have contributed to crowd funding.
-    uint public numRequests; 
+    uint256 public numRequests;
 
     struct Request {
         string description;
@@ -20,7 +20,7 @@ contract CrowdFunding {
         mapping(address => bool) voters;
     }
 
-    mapping(uint => Request) public allRequests;
+    mapping(uint256 => Request) public allRequests;
     mapping(address => uint256) public contributors; // key value pair of contributors address and fund they have contributed.
 
     constructor(uint256 _target, uint256 _deadline) {
@@ -31,11 +31,11 @@ contract CrowdFunding {
     }
 
     // All Modifiers starts here --------------------------------------------------
-    modifier onlyOwner {
+    modifier onlyOwner() {
         require(msg.sender == owner, "Only owner can access this function.");
         _;
     }
-     
+
     modifier isDeadlinePassed() {
         require(
             block.timestamp < deadline,
@@ -43,8 +43,13 @@ contract CrowdFunding {
         );
         _;
     }
-     // All Modifiers Ends here --------------------------------------------------
 
+    modifier isContributor() {
+        require(contributors[msg.sender] > 0, "Sorry, you are not a contributor. Try to contribute to crowd funding then try again. Thanks.");
+        _;
+    }
+
+    // All Modifiers Ends here --------------------------------------------------
 
     // get balance
     function getBalance() public view returns (uint256) {
@@ -67,7 +72,7 @@ contract CrowdFunding {
     }
 
     // Refund the money if the target is not fulfilled and deadline has passed.
-    function refund() public isDeadlinePassed {
+    function refund() public isDeadlinePassed isContributor {
         require(raisedAmount < target, "You are not eligible for refund");
         require(contributors[msg.sender] > 0);
 
@@ -75,9 +80,12 @@ contract CrowdFunding {
         user.transfer(contributors[msg.sender]);
     }
 
-
     // Create Request
-    function createRequest (string memory _description, address payable _recipient, uint _value) public onlyOwner {
+    function createRequest(
+        string memory _description,
+        address payable _recipient,
+        uint256 _value
+    ) public onlyOwner {
         Request storage newRequest = allRequests[numRequests];
         numRequests++;
 
@@ -86,6 +94,24 @@ contract CrowdFunding {
         newRequest.value = _value;
         newRequest.completed = false;
         newRequest.noOfVoters = 0;
+    }
+
+    // vote request.
+    function voteRequest(uint256 _requestNo) public isContributor {
+        Request storage currentRequest = allRequests[_requestNo];
+        require(currentRequest.voters[msg.sender] == false, "you have already voted");
+        currentRequest.voters[msg.sender] = true;
+        currentRequest.noOfVoters++;
+    }
+
+    // make payemnt only if the voters are greater than half of the contributors.
+    function makePayment(uint _requestNo) public onlyOwner{
+        require(raisedAmount >= target);
+        Request storage currentRequest = allRequests[_requestNo];
+        require(currentRequest.completed == false, "This request has already completed");
+        require(currentRequest.noOfVoters > totalContributors/2, "Contributor does not support. Votes are low.");
+        currentRequest.recipient.transfer(currentRequest.value);
+
 
     }
 }
